@@ -1,2 +1,7 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# GitHub Linguist overrides to detect Verilog as the primary repository language
+*.ps1 linguist-vendored
+*.do linguist-language=Tcl
+*.sdc linguist-language=Tcl
+*.qsf linguist-vendored
+*.qpf linguist-vendored
+*.v linguist-language=Verilog
