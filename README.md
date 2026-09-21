@@ -113,6 +113,24 @@ Both implementations were compiled and analyzed using **Intel Quartus Prime Lite
 
 ---
 
+### Power Analysis & Thermal Dissipation Comparison
+
+| Power Component | Baseline (`conv.v`) | Optimized (`conv_optimized.v`) | Impact / Notes |
+| :--- | :---: | :---: | :--- |
+| **Total Thermal Power** | **452.14 mW** | **451.90 mW** | -0.24 mW (~Identical) |
+| **Core Static Power** | **411.42 mW** | **411.42 mW** | Silicon transistor leakage of Cyclone V die |
+| **Core Dynamic Power** | **8.92 mW** | **13.97 mW** | +5.05 mW from toggling 492 pipeline registers |
+| **I/O Thermal Power** | **31.80 mW** | **26.51 mW** | Pin power dissipation |
+| **Estimation Confidence** | Low | Low | Standard vectorless toggle estimation |
+
+#### Optimized Power Analyzer Summary
+![Quartus Prime Power Analyzer](results/power_analysis_optimized.png)
+
+#### Timing Closure & Fmax Summary
+![TimeQuest Timing Analyzer Fmax](results/timing_fmax_optimized.png)
+
+---
+
 ## 4. Functional Verification & Simulation
 
 Both versions include dedicated self-checking testbenches tested in **ModelSim - Intel FPGA Edition 20.1** with 5 standard image processing kernels:
@@ -123,7 +141,15 @@ Both versions include dedicated self-checking testbenches tested in **ModelSim -
 4. **Sharpening Filter**: Accentuates high-frequency detail ($Y = 50$).
 5. **Emboss Filter**: Directional relief effect filter ($Y = 290$).
 
-### Simulation Output (ModelSim Console)
+### Simulation Waveforms (4-Cycle Pipelined Execution)
+The pipelined engine latches the output $Y$ and asserts `done` exactly 4 clock cycles after `start` is triggered:
+
+![ModelSim Simulation Waveform](results/simulation_waveform_optimized.png)
+
+### Simulation Transcript (ModelSim Console)
+All 5 test kernels passed with 0 errors:
+
+![ModelSim Console Transcript](results/simulation_console_optimized.png)
 
 ```text
 # --------------------------------------------
