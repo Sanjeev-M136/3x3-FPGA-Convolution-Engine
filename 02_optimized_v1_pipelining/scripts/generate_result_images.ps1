@@ -340,8 +340,8 @@ function Render-FmaxImage {
 $repoResults = "C:\Users\sanje\3x3-FPGA-Convolution-Engine\02_optimized_v1_pipelining\results"
 Render-PowerAnalysisImage "$repoResults\power_analysis_optimized.png"
 Render-PowerAnalysisImage "$repoResults\power_analysis.png"
-Render-WaveformImage "$repoResults\simulation_waveform_optimized.png"
-Render-WaveformImage "$repoResults\simulation_waveform.png"
 Render-ConsoleImage "$repoResults\simulation_console_optimized.png"
+# NOTE: simulation_waveform.png, timing_fmax.png, setup_timing.png, hold_timing.png,
+# and rtl_schematic.png are official GUI captures and should NOT be overwritten.
 
-Write-Host "VCD-based power and simulation waveform images rendered successfully in $repoResults!"
+Write-Host "VCD-based power analysis report images updated successfully in $repoResults!"
