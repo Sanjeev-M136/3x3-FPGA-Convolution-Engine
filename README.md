@@ -99,35 +99,55 @@ Both implementations were compiled and analyzed using **Intel Quartus Prime Lite
 | :--- | :---: | :---: | :---: | :---: |
 | **Max Operating Frequency ($F_{max}$)** | 76.95 MHz | **76.44 MHz** | **185.15 MHz** | **+108.71 MHz (+142.2%)** |
 | **Setup Slack (at 100 MHz)** | +0.455 ns* | **-3.083 ns (VIOLATION)** | **+4.599 ns (MET)** | **+7.682 ns positive margin** |
-| **Hold Slack** | +0.616 ns | **+1.251 ns** | **+0.225 ns** | **MET (No hold violations)** |
+| **Hold Slack** | +0.616 ns | **+1.251 ns** | **+0.239 ns (MET)** | **MET (No hold violations)** |
 | **Critical Path Data Delay** | ~13.0 ns | **12.475 ns** | **4.490 ns** | **-7.985 ns (-64.0% delay reduction)** |
 | **Logic Levels on Critical Path** | 4 | 4 | **0** | **-4 logic levels** |
 | **Logic Utilization (ALMs)** | *Report value* | **143 / 41,910 (< 1%)** | **295 / 41,910 (< 1%)** | +152 ALMs (< 1% total capacity) |
 | **Total Registers** | *Not reported* | **101** | **593** | +492 registers |
 | **Variable Precision DSP Blocks** | *Not reported* | **5 / 112 (4%)** | **9 / 112 (8%)** | 9 independent multipliers |
 | **Latency (`start` $\rightarrow$ `done`)** | 1 cycle | 1 cycle | 4 cycles | +3 cycles |
-| **Total Thermal Power** | 436.76 mW (Low Conf.) | 452.14 mW (Low Conf.) | 451.90 mW (Low Conf.) | -0.24 mW (~identical) |
+| **Total Thermal Power** | 436.76 mW (Low Conf.) | 452.14 mW (Vectorless) | **432.85 mW (VCD Vector-Driven)** | **-19.29 mW lower total power** |
 | **Functional Errors (5 Kernels)** | 0 | 0 | **0** | **100% Functional Correctness** |
 
 *\*Note: The historical Quartus 21.1 report used a looser clock constraint (~13 ns period).*
 
 ---
 
-### Power Analysis & Thermal Dissipation Comparison
+### Power Analysis & Thermal Dissipation (Testbench VCD Vector-Based)
 
-| Power Component | Baseline (`conv.v`) | Optimized (`conv_optimized.v`) | Impact / Notes |
+Rather than relying purely on default vectorless estimation (12.5% toggle probability), the optimized engine's power was analyzed using **actual switching activity extracted from the testbench execution** via a generated Value Change Dump (`.vcd`) file (`conv_optimized_5tests.vcd`).
+
+* **Simulation Tool**: ModelSim - Intel FPGA Edition 20.1
+* **VCD File**: [`conv_optimized_5tests.vcd`](02_optimized_v1_pipelining/simulation/conv_optimized_5tests.vcd)
+* **Design Toggle Coverage**: **75.3%** of all internal design nodes actively toggled during the 5 image filtering operations
+* **Average Toggle Rate**: 5.815 million transitions / sec
+
+| Power Component | Baseline (`conv.v`) [Vectorless] | Optimized (`conv_optimized.v`) [VCD Vector-Driven] | Impact / Notes |
 | :--- | :---: | :---: | :--- |
-| **Total Thermal Power** | **452.14 mW** | **451.90 mW** | -0.24 mW (~Identical) |
-| **Core Static Power** | **411.42 mW** | **411.42 mW** | Silicon transistor leakage of Cyclone V die |
-| **Core Dynamic Power** | **8.92 mW** | **13.97 mW** | +5.05 mW from toggling 492 pipeline registers |
-| **I/O Thermal Power** | **31.80 mW** | **26.51 mW** | Pin power dissipation |
-| **Estimation Confidence** | Low | Low | Standard vectorless toggle estimation |
+| **Total Thermal Power** | **452.14 mW** | **432.85 mW** | **-19.29 mW power savings** |
+| **Core Static Power** | **411.42 mW** | **411.30 mW** | Silicon transistor leakage of Cyclone V die |
+| **Core Dynamic Power** | **8.92 mW** | **9.02 mW** | Accurate dynamic power from 75.3% toggle switching |
+| **I/O Thermal Power** | **31.80 mW** | **12.53 mW** | -19.27 mW reduction in I/O power dissipation |
+| **Activity Source** | Vectorless (Default) | **Testbench VCD (`conv_optimized_5tests.vcd`)** | High accuracy dynamic toggle profiling |
 
-#### Optimized Power Analyzer Summary
+#### Power Analyzer Summary (Vector-Based with VCD)
 ![Quartus Prime Power Analyzer](02_optimized_v1_pipelining/results/power_analysis_optimized.png)
 
-#### Timing Closure & Fmax Summary
+---
+
+### Official Quartus Prime Timing Analyzer Reports
+
+#### Fmax Summary (Slow 1100mV 85C Model): 185.15 MHz
 ![TimeQuest Timing Analyzer Fmax](02_optimized_v1_pipelining/results/timing_fmax_optimized.png)
+
+#### Setup Slack Summary: +4.599 ns (Timing MET)
+![TimeQuest Setup Slack](02_optimized_v1_pipelining/results/setup_timing.png)
+
+#### Hold Slack Summary: +0.239 ns (Timing MET)
+![TimeQuest Hold Slack](02_optimized_v1_pipelining/results/hold_timing.png)
+
+#### Pipelined RTL Architecture Schematic
+![RTL Technology Map Schematic](02_optimized_v1_pipelining/results/rtl_schematic.png)
 
 ---
 

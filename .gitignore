@@ -6,6 +6,8 @@ output_files_optimized/
 
 # Simulation artifacts
 *.vcd
+!*conv_optimized_5tests.vcd
 *.wlf
 transcript
 work/
+c5_pin_model_dump.txt

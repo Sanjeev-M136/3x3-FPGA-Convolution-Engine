@@ -24,22 +24,22 @@ function Render-PowerAnalysisImage {
     $blackBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(30, 30, 30))
     $grayBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(100, 100, 100))
 
-    $g.DrawString("Quartus Prime Power Analyzer Summary (Optimized Engine)", $titleFont, $whiteBrush, 15, 12)
+    $g.DrawString("Quartus Prime Power Analyzer - Vector-Based (Simulation VCD)", $titleFont, $whiteBrush, 15, 12)
 
     # Table Grid
     $rows = @(
-        @("Power Analyzer Status", "Successful - Mon Sep 21 12:34:27 2026"),
+        @("Power Analyzer Status", "Successful - Mon Sep 21 14:40:34 2026"),
         @("Quartus Prime Version", "23.1std.0 Build 991 11/28/2023 SC Lite Edition"),
         @("Revision Name", "conv_optimized"),
         @("Top-level Entity Name", "conv_optimized"),
-        @("Family", "Cyclone V"),
-        @("Device", "5CSXFC6D6F31C6"),
-        @("Power Models", "Final"),
-        @("Total Thermal Power Dissipation", "451.90 mW"),
-        @("Core Dynamic Thermal Power Dissipation", "13.97 mW"),
-        @("Core Static Thermal Power Dissipation", "411.42 mW"),
-        @("I/O Thermal Power Dissipation", "26.51 mW"),
-        @("Power Estimation Confidence", "Low: user provided insufficient toggle rate data")
+        @("Family", "Cyclone V (5CSXFC6D6F31C6)"),
+        @("Simulation Input File", "conv_optimized_5tests.vcd (ModelSim 2020.1)"),
+        @("Design Toggle Coverage", "75.3% of internal nodes toggled (0.6% unknown)"),
+        @("Total Thermal Power Dissipation", "432.85 mW"),
+        @("Core Dynamic Thermal Power Dissipation", "9.02 mW"),
+        @("Core Static Thermal Power Dissipation", "411.30 mW"),
+        @("I/O Thermal Power Dissipation", "12.53 mW"),
+        @("Average Toggle Rate", "5.815 millions of transitions / sec")
     )
 
     $startY = 65
@@ -337,10 +337,11 @@ function Render-FmaxImage {
     $bmp.Dispose()
 }
 
-$repoResults = "C:\Users\sanje\3x3-FPGA-Convolution-Engine\results"
+$repoResults = "C:\Users\sanje\3x3-FPGA-Convolution-Engine\02_optimized_v1_pipelining\results"
 Render-PowerAnalysisImage "$repoResults\power_analysis_optimized.png"
-Render-ConsoleImage "$repoResults\simulation_console_optimized.png"
+Render-PowerAnalysisImage "$repoResults\power_analysis.png"
 Render-WaveformImage "$repoResults\simulation_waveform_optimized.png"
-Render-FmaxImage "$repoResults\timing_fmax_optimized.png"
+Render-WaveformImage "$repoResults\simulation_waveform.png"
+Render-ConsoleImage "$repoResults\simulation_console_optimized.png"
 
-Write-Host "All 4 optimized results images generated successfully in $repoResults!"
+Write-Host "VCD-based power and simulation waveform images rendered successfully in $repoResults!"
