@@ -11,3 +11,4 @@ output_files_optimized/
 transcript
 work/
 c5_pin_model_dump.txt
+*.qws
