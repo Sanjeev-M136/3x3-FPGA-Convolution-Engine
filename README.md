@@ -1,46 +1,223 @@
-# 3×3 FPGA Convolution Engine
+# 3×3 FPGA Convolution Engine (Baseline & Pipelined Optimization)
 
-A Verilog HDL implementation of a 3×3 image convolution engine using nine parallel signed 16×16 multipliers and a multi-level adder tree, targeted to an Intel Cyclone V FPGA.
+A Verilog HDL implementation and hardware optimization of a **3×3 image convolution accelerator** targeting the **Intel Cyclone V (5CSXFC6D6F31C6)** FPGA.
 
-## Overview
+This repository features both the **Original Unpipelined Baseline** and the **4-Stage Pipelined Optimized Engine**, establishing a direct same-tool comparison in **Quartus Prime Lite 23.1** and demonstrating a **+142.2% increase in maximum clock frequency ($F_{max}$)** with 100% verified functional correctness.
 
-Convolution is a fundamental operation in digital image processing used for applications such as:
+---
 
-- Image blurring
-- Edge detection
-- Sharpening
-- Embossing
+## 1. Overview & Mathematical Formulation
 
-This project implements the hardware computation for a single 3×3 image patch.
+Convolution is the fundamental kernel operation in image filtering, computer vision, and Convolutional Neural Networks (CNNs). For a 3×3 image patch, the discrete 2D convolution is defined as:
 
-The design performs nine pixel–kernel multiplications in parallel and combines the resulting partial products using a multi-level adder tree to generate a 36-bit signed convolution result.
+$$Y = \sum_{i=0}^{2}\sum_{j=0}^{2} P_{ij} \times K_{ij}$$
 
-## Architecture
+where:
+* $P_{ij}$ represents the signed 16-bit input pixel value.
+* $K_{ij}$ represents the signed 16-bit kernel filter coefficient.
+* $Y$ is the signed 36-bit convolution output accumulator.
+
+The hardware engine computes all nine 16×16 signed multiplications in parallel and sums the products through an adder tree.
+
+---
+
+## 2. Hardware Implementations
+
+### A. Baseline Architecture (`rtl/conv.v`)
+* **Datapath**: Fully combinational multiplier-to-adder tree.
+* **Latency**: 1 clock cycle from `start` assertion to `done` output.
+* **Critical Path**: Traverses the input registers $\rightarrow$ 16×16 multiplier $\rightarrow$ 4 cascaded levels of carry-chain additions $\rightarrow$ output register $y$.
+* **Bottleneck**: Combinational delay of 12.48 ns across 4 logic levels limits clock frequency to ~76 MHz on Cyclone V silicon.
+
+### B. Optimized Architecture (`rtl/conv_optimized.v`)
+* **Datapath**: 4-Stage Balanced Pipeline.
+* **Stage 1 (Cycle 1)**: Nine parallel signed 16×16 multipliers with registered outputs (`m00_r` to `m22_r`), utilizing dedicated DSP block output registers.
+* **Stage 2 (Cycle 2)**: Adder Tree Level 1 (pairwise partial sums $s0 \dots s3$ and delayed $m22$).
+* **Stage 3 (Cycle 3)**: Adder Tree Level 2 (quad partial sums $t0, t1$ and delayed $m22$).
+* **Stage 4 (Cycle 4)**: Final accumulation stage latched into output register $y[35:0]$.
+* **Control**: A 4-bit shift register synchronizes `start` to assert `done` precisely when valid data is latched at cycle 4.
 
 ```text
-              3×3 Pixel Patch
-                     │
-                     │
-              3×3 Kernel
-                     │
-                     ▼
-        ┌────────────────────────┐
-        │  9 Parallel Multipliers│
-        │       16 × 16          │
-        └────────────────────────┘
-                     │
-                     ▼
-              Partial Products
-                     │
-                     ▼
-        ┌────────────────────────┐
-        │    Multi-Level Adder   │
-        │         Tree           │
-        └────────────────────────┘
-                     │
-                     ▼
-              36-bit Signed
-             Convolution Result
-                     │
-                     ▼
-               Registered y
+========================================================================================
+                          PIPELINED ARCHITECTURE DATAPATH
+========================================================================================
+
+    [3×3 Pixels (p00..p22)]        [3×3 Kernel (k00..k22)]
+                \                      /
+                 \                    /
+                  ▼                  ▼
+          ┌───────────────────────────────────┐
+          │  9 Parallel Signed Multipliers    │
+          │         (16-bit × 16-bit)         │
+          └─────────────────┬─────────────────┘
+                            ▼
+          ┌───────────────────────────────────┐
+          │     PIPELINE REGISTERS STAGE 1    │  <--- Clock Cycle 1
+          │   (m00_r, m01_r, ... m22_r [32b]) │
+          └─────────────────┬─────────────────┘
+                            ▼
+          ┌───────────────────────────────────┐
+          │        Adder Tree Level 1         │
+          │      (Pairwise Partial Sums)      │
+          └─────────────────┬─────────────────┘
+                            ▼
+          ┌───────────────────────────────────┐
+          │     PIPELINE REGISTERS STAGE 2    │  <--- Clock Cycle 2
+          │        (s0_r .. s3_r [33b])       │
+          └─────────────────┬─────────────────┘
+                            ▼
+          ┌───────────────────────────────────┐
+          │        Adder Tree Level 2         │
+          │       (Quad Partial Sums)         │
+          └─────────────────┬─────────────────┘
+                            ▼
+          ┌───────────────────────────────────┐
+          │     PIPELINE REGISTERS STAGE 3    │  <--- Clock Cycle 3
+          │         (t0_r, t1_r [34b])        │
+          └─────────────────┬─────────────────┘
+                            ▼
+          ┌───────────────────────────────────┐
+          │        Final Accumulation         │
+          │      (u0 [35b] + m22_r3 [32b])    │
+          └─────────────────┬─────────────────┘
+                            ▼
+          ┌───────────────────────────────────┐
+          │        OUTPUT REGISTER y[35:0]    │  <--- Clock Cycle 4
+          │            (done = 1'b1)          │
+          └───────────────────────────────────┘
+```
+
+---
+
+## 3. FPGA Implementation & Synthesis Comparison
+
+Both implementations were compiled and analyzed using **Intel Quartus Prime Lite 23.1** targeting the identical device, package, speed grade, and clock constraints:
+* **FPGA Device**: Intel Cyclone V `5CSXFC6D6F31C6`
+* **Timing Constraint**: 100 MHz clock (10.000 ns period)
+
+| Metric | Original (Quartus 21.1) | Quartus 23.1 Baseline (`conv.v`) | Quartus 23.1 Optimized (`conv_optimized.v`) | Optimization Improvement |
+| :--- | :---: | :---: | :---: | :---: |
+| **Max Operating Frequency ($F_{max}$)** | 76.95 MHz | **76.44 MHz** | **185.15 MHz** | **+108.71 MHz (+142.2%)** |
+| **Setup Slack (at 100 MHz)** | +0.455 ns* | **-3.083 ns (VIOLATION)** | **+4.599 ns (MET)** | **+7.682 ns positive margin** |
+| **Hold Slack** | +0.616 ns | **+1.251 ns** | **+0.225 ns** | **MET (No hold violations)** |
+| **Critical Path Data Delay** | ~13.0 ns | **12.475 ns** | **4.490 ns** | **-7.985 ns (-64.0% delay reduction)** |
+| **Logic Levels on Critical Path** | 4 | 4 | **0** | **-4 logic levels** |
+| **Logic Utilization (ALMs)** | *Report value* | **143 / 41,910 (< 1%)** | **295 / 41,910 (< 1%)** | +152 ALMs (< 1% total capacity) |
+| **Total Registers** | *Not reported* | **101** | **593** | +492 registers |
+| **Variable Precision DSP Blocks** | *Not reported* | **5 / 112 (4%)** | **9 / 112 (8%)** | 9 independent multipliers |
+| **Latency (`start` $\rightarrow$ `done`)** | 1 cycle | 1 cycle | 4 cycles | +3 cycles |
+| **Total Thermal Power** | 436.76 mW (Low Conf.) | 452.14 mW (Low Conf.) | 451.90 mW (Low Conf.) | -0.24 mW (~identical) |
+| **Functional Errors (5 Kernels)** | 0 | 0 | **0** | **100% Functional Correctness** |
+
+*\*Note: The historical Quartus 21.1 report used a looser clock constraint (~13 ns period).*
+
+---
+
+## 4. Functional Verification & Simulation
+
+Both versions include dedicated self-checking testbenches tested in **ModelSim - Intel FPGA Edition 20.1** with 5 standard image processing kernels:
+
+1. **Identity Filter**: Passes center pixel through ($Y = 50$).
+2. **Blur Filter**: Uniform averaging filter ($Y = 450$).
+3. **Edge Detection (Laplacian)**: High-pass spatial edge filter ($Y = 0$).
+4. **Sharpening Filter**: Accentuates high-frequency detail ($Y = 50$).
+5. **Emboss Filter**: Directional relief effect filter ($Y = 290$).
+
+### Simulation Output (ModelSim Console)
+
+```text
+# --------------------------------------------
+# TEST 1 : IDENTITY FILTER (PIPELINED)
+# Expected = 50
+# Output = 50
+# STATUS = PASS
+# --------------------------------------------
+# TEST 2 : BLUR FILTER (PIPELINED)
+# Expected = 450
+# Output = 450
+# STATUS = PASS
+# --------------------------------------------
+# TEST 3 : EDGE DETECTION (PIPELINED)
+# Expected = 0
+# Output = 0
+# STATUS = PASS
+# --------------------------------------------
+# TEST 4 : SHARPENING (PIPELINED)
+# Expected = 50
+# Output = 50
+# STATUS = PASS
+# --------------------------------------------
+# TEST 5 : EMBOSS (PIPELINED)
+# Expected = 290
+# Output = 290
+# STATUS = PASS
+# --------------------------------------------
+# ALL PIPELINED TEST CASES COMPLETED
+# Total Errors = 0
+# FINAL RESULT = PASS
+```
+
+---
+
+## 5. Repository Structure
+
+```text
+3x3-FPGA-Convolution-Engine/
+│
+├── README.md                          # Project overview, architectural analysis & results
+├── .gitignore                         # Excludes temporary Quartus/ModelSim build databases
+│
+├── rtl/
+│   ├── conv.v                         # Original unpipelined baseline RTL
+│   └── conv_optimized.v               # 4-stage pipelined optimized RTL
+│
+├── simulation/
+│   ├── tb_conv.v                      # Self-checking testbench for baseline
+│   └── tb_conv_optimized.v            # Self-checking testbench for pipelined design
+│
+├── conv.qpf                           # Quartus Project File (contains baseline & optimized revisions)
+├── conv.qsf                           # Quartus Settings File (Baseline revision)
+├── conv.sdc                           # Timing Constraints (100 MHz target clock)
+├── conv_optimized.qsf                 # Quartus Settings File (Optimized revision)
+├── conv_optimized.sdc                 # Timing Constraints (Optimized revision)
+│
+├── run_baseline.ps1                   # Automated compilation script for baseline flow
+├── run_optimized.ps1                  # Automated compilation script for optimized flow
+├── parse_reports.ps1                  # Automated report parser for timing & resources
+│
+├── results/                           # Simulation console, waveforms, and timing screenshots
+└── docs/
+    └── 3x3_Convolution_Engine_Report.docx
+```
+
+---
+
+## 6. How to Recreate Results
+
+### Simulation (ModelSim / Questa)
+```powershell
+# Compile and simulate the optimized design
+vlib work
+vlog -work work rtl/conv_optimized.v simulation/tb_conv_optimized.v
+vsim -c -do "run -all; quit" work.tb_conv_optimized
+```
+
+### Synthesis & Timing Analysis (Quartus Prime Lite 23.1)
+```powershell
+# Run the automated baseline compilation
+.\run_baseline.ps1
+
+# Run the automated pipelined compilation
+.\run_optimized.ps1
+
+# View extracted summary
+.\parse_reports.ps1 -ProjectName conv_optimized
+```
+
+---
+
+## 7. Key Engineering Takeaways
+
+1. **Silicon Critical Path**: In unpipelined arithmetic datapaths, cascading multipliers directly into deep adder trees creates large propagation delays ($12.48\text{ ns}$), restricting maximum clock frequency.
+2. **Balanced Pipelining**: By inserting pipeline register stages after the multipliers and intermediate adder levels, combinational path delay was reduced by **64%** ($4.49\text{ ns}$), increasing $F_{max}$ to **185.15 MHz** with zero logic levels between registers.
+3. **Resource vs. Speed Trade-off**: The 2.42× frequency improvement required only 152 additional ALMs and 492 flip-flops, representing less than 1% of the Cyclone V FPGA capacity.

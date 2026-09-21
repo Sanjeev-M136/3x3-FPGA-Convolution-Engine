@@ -1,0 +1,11 @@
+# Quartus temporary compilation databases & output binaries
+db/
+incremental_db/
+output_files/
+output_files_optimized/
+
+# Simulation artifacts
+*.vcd
+*.wlf
+transcript
+work/
