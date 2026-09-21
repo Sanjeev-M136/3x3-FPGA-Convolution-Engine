@@ -1,8 +1,8 @@
-# 3×3 FPGA Convolution Engine (Baseline & Pipelined Optimization)
+# 3×3 FPGA Convolution Engine (Modular Optimization Architecture)
 
-A Verilog HDL implementation and hardware optimization of a **3×3 image convolution accelerator** targeting the **Intel Cyclone V (5CSXFC6D6F31C6)** FPGA.
+A Verilog HDL implementation and systematic hardware optimization of a **3×3 image convolution accelerator** targeting the **Intel Cyclone V (5CSXFC6D6F31C6)** FPGA.
 
-This repository features both the **Original Unpipelined Baseline** and the **4-Stage Pipelined Optimized Engine**, establishing a direct same-tool comparison in **Quartus Prime Lite 23.1** and demonstrating a **+142.2% increase in maximum clock frequency ($F_{max}$)** with 100% verified functional correctness.
+This repository is structured modularly into dedicated version folders, comparing the **Original Baseline** against successive hardware optimizations in **Intel Quartus Prime Lite 23.1**. Optimization Version 1 introduces a **4-stage balanced pipeline**, achieving a **+142.2% increase in maximum clock frequency ($F_{max}$)** with 100% verified functional correctness.
 
 ---
 
@@ -21,15 +21,15 @@ The hardware engine computes all nine 16×16 signed multiplications in parallel 
 
 ---
 
-## 2. Hardware Implementations
+## 2. Hardware Architecture & Versions
 
-### A. Baseline Architecture (`rtl/conv.v`)
+### A. Baseline Version (`01_baseline/`)
 * **Datapath**: Fully combinational multiplier-to-adder tree.
 * **Latency**: 1 clock cycle from `start` assertion to `done` output.
-* **Critical Path**: Traverses the input registers $\rightarrow$ 16×16 multiplier $\rightarrow$ 4 cascaded levels of carry-chain additions $\rightarrow$ output register $y$.
+* **Critical Path**: Traverses input registers $\rightarrow$ 16×16 multiplier $\rightarrow$ 4 cascaded levels of carry-chain additions $\rightarrow$ output register $y$.
 * **Bottleneck**: Combinational delay of 12.48 ns across 4 logic levels limits clock frequency to ~76 MHz on Cyclone V silicon.
 
-### B. Optimized Architecture (`rtl/conv_optimized.v`)
+### B. Optimized Version 1: 4-Stage Pipelining (`02_optimized_v1_pipelining/`)
 * **Datapath**: 4-Stage Balanced Pipeline.
 * **Stage 1 (Cycle 1)**: Nine parallel signed 16×16 multipliers with registered outputs (`m00_r` to `m22_r`), utilizing dedicated DSP block output registers.
 * **Stage 2 (Cycle 2)**: Adder Tree Level 1 (pairwise partial sums $s0 \dots s3$ and delayed $m22$).
@@ -39,7 +39,7 @@ The hardware engine computes all nine 16×16 signed multiplications in parallel 
 
 ```text
 ========================================================================================
-                          PIPELINED ARCHITECTURE DATAPATH
+                    OPTIMIZED V1 PIPELINED ARCHITECTURE DATAPATH
 ========================================================================================
 
     [3×3 Pixels (p00..p22)]        [3×3 Kernel (k00..k22)]
@@ -95,7 +95,7 @@ Both implementations were compiled and analyzed using **Intel Quartus Prime Lite
 * **FPGA Device**: Intel Cyclone V `5CSXFC6D6F31C6`
 * **Timing Constraint**: 100 MHz clock (10.000 ns period)
 
-| Metric | Original (Quartus 21.1) | Quartus 23.1 Baseline (`conv.v`) | Quartus 23.1 Optimized (`conv_optimized.v`) | Optimization Improvement |
+| Metric | Original (Quartus 21.1) | Quartus 23.1 Baseline (`01_baseline`) | Quartus 23.1 Optimized (`02_optimized_v1`) | Optimization Delta |
 | :--- | :---: | :---: | :---: | :---: |
 | **Max Operating Frequency ($F_{max}$)** | 76.95 MHz | **76.44 MHz** | **185.15 MHz** | **+108.71 MHz (+142.2%)** |
 | **Setup Slack (at 100 MHz)** | +0.455 ns* | **-3.083 ns (VIOLATION)** | **+4.599 ns (MET)** | **+7.682 ns positive margin** |
@@ -124,10 +124,10 @@ Both implementations were compiled and analyzed using **Intel Quartus Prime Lite
 | **Estimation Confidence** | Low | Low | Standard vectorless toggle estimation |
 
 #### Optimized Power Analyzer Summary
-![Quartus Prime Power Analyzer](results/power_analysis_optimized.png)
+![Quartus Prime Power Analyzer](02_optimized_v1_pipelining/results/power_analysis_optimized.png)
 
 #### Timing Closure & Fmax Summary
-![TimeQuest Timing Analyzer Fmax](results/timing_fmax_optimized.png)
+![TimeQuest Timing Analyzer Fmax](02_optimized_v1_pipelining/results/timing_fmax_optimized.png)
 
 ---
 
@@ -144,12 +144,12 @@ Both versions include dedicated self-checking testbenches tested in **ModelSim -
 ### Simulation Waveforms (4-Cycle Pipelined Execution)
 The pipelined engine latches the output $Y$ and asserts `done` exactly 4 clock cycles after `start` is triggered:
 
-![ModelSim Simulation Waveform](results/simulation_waveform_optimized.png)
+![ModelSim Simulation Waveform](02_optimized_v1_pipelining/results/simulation_waveform_optimized.png)
 
 ### Simulation Transcript (ModelSim Console)
 All 5 test kernels passed with 0 errors:
 
-![ModelSim Console Transcript](results/simulation_console_optimized.png)
+![ModelSim Console Transcript](02_optimized_v1_pipelining/results/simulation_console_optimized.png)
 
 ```text
 # --------------------------------------------
@@ -185,59 +185,86 @@ All 5 test kernels passed with 0 errors:
 
 ---
 
-## 5. Repository Structure
+## 5. Repository Directory Structure
+
+The repository is modularly arranged so each version is entirely self-contained with its own RTL, simulation, Quartus project, and verified results:
 
 ```text
 3x3-FPGA-Convolution-Engine/
 │
-├── README.md                          # Project overview, architectural analysis & results
-├── .gitignore                         # Excludes temporary Quartus/ModelSim build databases
+├── README.md                                  # Complete project documentation & comparison
+├── .gitignore                                 # Build artifact ignore rules
 │
-├── rtl/
-│   ├── conv.v                         # Original unpipelined baseline RTL
-│   └── conv_optimized.v               # 4-stage pipelined optimized RTL
+├── 01_baseline/                               # [BASELINE] Unpipelined Architecture (Fmax = 76.44 MHz)
+│   ├── rtl/
+│   │   └── conv.v                             # Baseline Verilog RTL
+│   ├── simulation/
+│   │   └── tb_conv.v                          # Baseline self-checking testbench
+│   ├── quartus/
+│   │   ├── conv.qpf                           # Quartus Project File
+│   │   ├── conv.qsf                           # Assignments for Cyclone V 5CSXFC6D6F31C6
+│   │   └── conv.sdc                           # 100 MHz timing constraints
+│   ├── results/                               # Waveforms, timing summaries, schematics
+│   └── scripts/
+│       ├── run_baseline.ps1                   # Automated compilation flow script
+│       └── report_paths.tcl                   # Timing path generator
 │
-├── simulation/
-│   ├── tb_conv.v                      # Self-checking testbench for baseline
-│   └── tb_conv_optimized.v            # Self-checking testbench for pipelined design
+├── 02_optimized_v1_pipelining/                # [OPTIMIZATION V1] 4-Stage Pipelining (Fmax = 185.15 MHz)
+│   ├── rtl/
+│   │   └── conv_optimized.v                   # Pipelined Verilog RTL
+│   ├── simulation/
+│   │   ├── tb_conv_optimized.v                # Pipelined self-checking testbench
+│   │   └── view_wave.do                       # ModelSim waveform DO script
+│   ├── quartus/
+│   │   ├── conv_optimized.qpf                 # Standalone Quartus Project File
+│   │   ├── conv_optimized.qsf                 # Optimized assignments
+│   │   └── conv_optimized.sdc                 # 100 MHz timing constraints
+│   ├── results/                               # Pipelined waveforms, console, power & Fmax figures
+│   └── scripts/
+│       ├── run_optimized.ps1                  # Automated compilation flow script
+│       ├── report_paths_optimized.tcl         # Timing path generator
+│       └── generate_result_images.ps1         # Graphic generator script
 │
-├── conv.qpf                           # Quartus Project File (contains baseline & optimized revisions)
-├── conv.qsf                           # Quartus Settings File (Baseline revision)
-├── conv.sdc                           # Timing Constraints (100 MHz target clock)
-├── conv_optimized.qsf                 # Quartus Settings File (Optimized revision)
-├── conv_optimized.sdc                 # Timing Constraints (Optimized revision)
+├── docs/
+│   └── 3x3_Convolution_Engine_Report.docx     # Full project report document
 │
-├── run_baseline.ps1                   # Automated compilation script for baseline flow
-├── run_optimized.ps1                  # Automated compilation script for optimized flow
-├── parse_reports.ps1                  # Automated report parser for timing & resources
-│
-├── results/                           # Simulation console, waveforms, and timing screenshots
-└── docs/
-    └── 3x3_Convolution_Engine_Report.docx
+└── [Future Exploration Roadmap]
+    ├── 03_optimized_v2_adder_tree/            # (Planned: Balanced adder tree / Carry-save addition)
+    └── 04_optimized_v3_dsp_tuning/            # (Planned: Direct DSP hardware MAC cascade)
 ```
 
 ---
 
-## 6. How to Recreate Results
+## 6. How to Run & Recreate Results
 
-### Simulation (ModelSim / Questa)
+### A. Simulating in ModelSim / Questa
+
+**Baseline Simulation:**
 ```powershell
-# Compile and simulate the optimized design
+cd 01_baseline/simulation
 vlib work
-vlog -work work rtl/conv_optimized.v simulation/tb_conv_optimized.v
+vlog -work work ../rtl/conv.v tb_conv.v
+vsim -c -do "run -all; quit" work.tb_conv
+```
+
+**Optimized V1 Simulation:**
+```powershell
+cd 02_optimized_v1_pipelining/simulation
+vlib work
+vlog -work work ../rtl/conv_optimized.v tb_conv_optimized.v
 vsim -c -do "run -all; quit" work.tb_conv_optimized
 ```
 
-### Synthesis & Timing Analysis (Quartus Prime Lite 23.1)
+### B. Synthesizing in Intel Quartus Prime Lite 23.1
+
+**Run Baseline Flow:**
 ```powershell
-# Run the automated baseline compilation
-.\run_baseline.ps1
+powershell -ExecutionPolicy Bypass -File .\01_baseline\scripts\run_baseline.ps1
+```
 
-# Run the automated pipelined compilation
-.\run_optimized.ps1
-
-# View extracted summary
-.\parse_reports.ps1 -ProjectName conv_optimized
+**Run Optimized V1 Flow:**
+```powershell
+powershell -ExecutionPolicy Bypass -File .\02_optimized_v1_pipelining\scripts\run_optimized.ps1
 ```
 
 ---

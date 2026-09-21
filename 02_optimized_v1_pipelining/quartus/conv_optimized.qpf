@@ -1,0 +1,6 @@
+QUARTUS_VERSION = "23.1"
+DATE = "2026-09-21"
+
+# Revisions
+
+PROJECT_REVISION = "conv_optimized"

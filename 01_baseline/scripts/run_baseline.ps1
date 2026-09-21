@@ -12,6 +12,10 @@ if (-not (Test-Path "$QuartusBin\quartus_sh.exe")) {
     exit 1
 }
 
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$quartusDir = Join-Path $scriptDir "..\quartus"
+Set-Location $quartusDir
+
 $startTime = Get-Date
 
 Write-Host "`n[1/4] Running Analysis & Synthesis (quartus_map)..." -ForegroundColor Yellow

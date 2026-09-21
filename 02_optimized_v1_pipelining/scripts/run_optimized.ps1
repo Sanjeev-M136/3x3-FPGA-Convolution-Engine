@@ -6,10 +6,19 @@ Write-Host "==========================================================" -Foregro
 Write-Host " 3x3 FPGA Convolution Engine - Optimized Compilation Flow " -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Cyan
 
+if (-not (Test-Path "$QuartusBin\quartus_sh.exe")) {
+    Write-Error "Quartus executable not found at $QuartusBin. Please ensure Quartus 23.1 is installed."
+    exit 1
+}
+
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$quartusDir = Join-Path $scriptDir "..\quartus"
+Set-Location $quartusDir
+
 $startTime = Get-Date
 
 Write-Host "`n[1/4] Running Analysis & Synthesis (quartus_map)..." -ForegroundColor Yellow
-& "$QuartusBin\quartus_map.exe" conv -c conv_optimized
+& "$QuartusBin\quartus_map.exe" conv_optimized
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Analysis & Synthesis failed with exit code $LASTEXITCODE"
@@ -17,7 +26,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "`n[2/4] Running Fitter / Place & Route (quartus_fit)..." -ForegroundColor Yellow
-& "$QuartusBin\quartus_fit.exe" conv -c conv_optimized
+& "$QuartusBin\quartus_fit.exe" conv_optimized
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Fitter failed with exit code $LASTEXITCODE"
@@ -25,7 +34,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "`n[3/4] Running TimeQuest Timing Analysis (quartus_sta)..." -ForegroundColor Yellow
-& "$QuartusBin\quartus_sta.exe" conv -c conv_optimized
+& "$QuartusBin\quartus_sta.exe" conv_optimized
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "TimeQuest failed with exit code $LASTEXITCODE"
@@ -33,10 +42,10 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "`n[4/4] Running Power Analysis (quartus_pow)..." -ForegroundColor Yellow
-& "$QuartusBin\quartus_pow.exe" conv -c conv_optimized
+& "$QuartusBin\quartus_pow.exe" conv_optimized
 
 $elapsed = (Get-Date) - $startTime
 Write-Host "`n==========================================================" -ForegroundColor Green
 Write-Host " Optimized compilation completed in $($elapsed.TotalSeconds.ToString('F1')) seconds!" -ForegroundColor Green
-Write-Host " Reports available in ./output_files_optimized/" -ForegroundColor Green
+Write-Host " Reports available in ./output_files/" -ForegroundColor Green
 Write-Host "==========================================================" -ForegroundColor Green

@@ -1,5 +1,5 @@
 vlib work
-vlog -work work rtl/conv_optimized.v simulation/tb_conv_optimized.v
+vlog -work work ../rtl/conv_optimized.v tb_conv_optimized.v
 vsim -voptargs=+acc work.tb_conv_optimized
 
 add wave -divider "Clock & Reset"
