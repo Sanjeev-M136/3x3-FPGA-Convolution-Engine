@@ -87,6 +87,9 @@ The hardware engine computes all nine 16×16 signed multiplications in parallel 
           └───────────────────────────────────┘
 ```
 
+### IEEE Standard Microarchitecture Diagram
+![IEEE Standard Microarchitecture Diagram](02_optimized_v1_pipelining/results/microarchitecture_diagram.png)
+
 ---
 
 ## 3. FPGA Implementation & Synthesis Comparison

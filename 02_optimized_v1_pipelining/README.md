@@ -22,6 +22,9 @@ Stage 3 (Cycle 3):  ▼ [Adder Level 2 Registers] t1_r, t2_r <= 2 parallel inter
 Stage 4 (Cycle 4):  ▼ [Output Accumulator Reg] y <= t1_r + t2_r + m33_r3, done <= 1'b1
 ```
 
+### IEEE Standard Microarchitecture Diagram
+![IEEE Microarchitecture Diagram](results/microarchitecture_diagram.png)
+
 ### RTL Technology Map Schematic
 ![Pipelined RTL Schematic](results/rtl_schematic.png)
 
